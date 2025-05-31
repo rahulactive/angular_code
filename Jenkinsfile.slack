@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+    tools {
+        nodejs 'v20.9.0'
+    }
+
+    options {
+        retry(2)
+        timestamps()
+    }
+
+    stages {
+        stage('SCM') {
+            steps {
+                git branch: 'master', url: 'https://github.com/ajilraju/keyshell.git'
+            }
+        }
+        stage('Install Deps') {
+            steps {
+                sh 'npm install'
+            }
+            post {
+                success {
+                    slackSend color: "good", message: "Project: ${JOB_NAME} Build #${env.BUILD_NUMBER}, URL ${env.BUILD_URL} - Installed dependency - npm install."
+                }
+                failure {
+                    slackSend color: "danger", message: "Project: ${JOB_NAME} Build #${env.BUILD_NUMBER}, URL ${env.BUILD_URL} - Failed to install dependency - npm install."
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'ng build'
+            }
+            post {
+                success {
+                    fingerprint 'dist/keyshell'
+                    slackSend color: "good", message: "Project: ${JOB_NAME} Build #${env.BUILD_NUMBER}, URL ${env.BUILD_URL} - Build succeeded."
+                }
+                failure {
+                    slackSend color: "danger", message: "Project: ${JOB_NAME} Build #${env.BUILD_NUMBER}, URL ${env.BUILD_URL} - Build failed."
+                }
+            }
+        }
+        stage('Deploy to Apache2') {
+            steps {
+                sh 'cp -rv dist/keyshell/* /var/www/html/'
+            }
+            post {
+                success {
+                    script {
+                        def output = sh(script: 'ls -la /var/www/html', returnStdout: true).trim()
+                        slackSend(blocks: [
+                            [
+                                "type": "section",
+                                "text": [
+                                    "type": "mrkdwn",
+                                    "text": "*Deployed files meta data*\n\n${output}"
+                                ]
+                            ]
+                        ])
+                    }
+                }
+                failure {
+                    slackSend color: "danger", message: "Project: ${JOB_NAME} Build #${env.BUILD_NUMBER}, URL ${env.BUILD_URL} - Deployment failed."
+                }
+            }
+        }
+        stage('Archive Artifacts') {
+            steps {
+                sh 'zip -r archive.zip dist/keyshell/*'
+                archiveArtifacts artifacts: 'archive.zip', fingerprint: true, onlyIfSuccessful: true
+            }
+        }
+    }
+
+    post {
+        success {
+            slackSend color: "good", message: "The Build #${env.BUILD_NUMBER} was successful: ${env.BUILD_URL}"
+        }
+        failure {
+            slackSend color: "danger", message: "The Build #${env.BUILD_NUMBER} failed: ${env.BUILD_URL}"
+        }
+    }
+}
