@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('SCM') {
             steps {
-                git branch: 'master', url: 'https://github.com/rahulactive/angular_code.git'
+                git branch: 'main', url: 'https://github.com/rahulactive/angular_code.git'
             }
         }
 
