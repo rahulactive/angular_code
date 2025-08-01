@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('SCM') {
             steps {
-                git branch: 'master', url: 'https://github.com/ajilraju/keyshell.git'
+                git branch: 'master', url: 'https://github.com/rahulactive/angular_code.git'
             }
         }
         stage('Install Deps') {
@@ -30,8 +30,10 @@ pipeline {
                 }
             }
         }
-        stage('Deploy to Apache2') {
+        stage('Deploy to Nginx') {
             steps {
+                sh 'sudo chown -R jenkins:jenkins /var/www/html
+                    rm -rf /var/www/html/*'
                 sh 'cp -rv dist/keyshell/* /var/www/html/'
             }
         }
