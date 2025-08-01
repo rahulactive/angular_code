@@ -9,6 +9,11 @@ pipeline {
         timestamps()
     }
 
+    environment {
+        DOCKER_IMAGE = 'angular-nginx-app'
+        DOCKER_CONTAINER = 'angular-container'
+    }
+
     stages {
         stage('SCM') {
             steps {
@@ -22,9 +27,9 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build Angular') {
             steps {
-                sh 'ng build'
+                sh 'npm run build'
             }
             post {
                 success {
@@ -33,21 +38,24 @@ pipeline {
             }
         }
 
-        stage('Deploy to Nginx') {
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $DOCKER_IMAGE .'
+            }
+        }
+
+        stage('Deploy with Docker') {
             steps {
                 sh '''
-                  sudo chown -R jenkins:jenkins /var/www/html
-                  rm -rf /var/www/html/*
+                    docker rm -f $DOCKER_CONTAINER || true
+                    docker run -d --name $DOCKER_CONTAINER -p 8080:80 $DOCKER_IMAGE
                 '''
-                sh 'cp -rv dist/keyshell/* /var/www/html/'
             }
         }
 
         stage('Archive Artifacts') {
             steps {
-                sh '''
-                  zip -r archive.zip dist/keyshell/*
-                '''
+                sh 'zip -r archive.zip dist/keyshell/*'
                 archiveArtifacts artifacts: 'archive.zip', fingerprint: true, onlyIfSuccessful: true
             }
         }
